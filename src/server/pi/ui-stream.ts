@@ -103,6 +103,28 @@ export interface PiTurnSpec {
 	/** The coalescing window for update fan-out (COMPACTION LAW above).
 	 *  Defaults to 100ms; tests tighten it. */
 	updateFlushMs?: number;
+	/** Retry backoff delays (ms) when a model returns an empty assistant
+	 *  stopReason:"stop" message (no visible text, no tool calls). Defaults
+	 *  to [1000, 2000, 4000] (3 retries); tests override with [0, 0, 0]. */
+	emptyRetryDelaysMs?: readonly number[];
+}
+
+const DEFAULT_EMPTY_RETRY_DELAYS_MS: readonly number[] = [1000, 2000, 4000];
+
+/** True when an assistant message stopped normally ("stop") without emitting
+ *  any non-empty text or any toolCall (e.g. OpenAI Responses empty final_answer). */
+export function isEmptyAssistantStop(message: AgentMessage | undefined): boolean {
+	if (!message) return false;
+	const m = message as { role?: string; stopReason?: string; content?: unknown };
+	if (m.role !== "assistant" || m.stopReason !== "stop") return false;
+	if (!Array.isArray(m.content)) return true;
+	for (const part of m.content) {
+		if (!part || typeof part !== "object") continue;
+		const block = part as { type?: string; text?: unknown };
+		if (block.type === "toolCall") return false;
+		if (block.type === "text" && typeof block.text === "string" && block.text.trim().length > 0) return false;
+	}
+	return true;
 }
 
 /** One view onto a running turn: push() replays/streams an event, done()
@@ -128,13 +150,25 @@ export interface PiTurnHandle {
 }
 
 export function runPiTurn(spec: PiTurnSpec): PiTurnHandle {
-	const { agent, onError, onFinish, onSettleError, onSettleFailure, usedToolCallIds, updateFlushMs = 100, requestCycle } = spec;
+	const {
+		agent,
+		onError,
+		onFinish,
+		onSettleError,
+		onSettleFailure,
+		usedToolCallIds,
+		updateFlushMs = 100,
+		requestCycle,
+		emptyRetryDelaysMs = DEFAULT_EMPTY_RETRY_DELAYS_MS,
+	} = spec;
 	const uniquifier = usedToolCallIds ? new ToolCallIdUniquifier(usedToolCallIds) : undefined;
 	const questions = pluginQuestionLedgerFor(agent);
 
 	let settled = false;
 	let sawAbort = false;
 	let reportedErrorText: string | undefined;
+	let started = false;
+	let cancelRetrySleep: (() => void) | undefined;
 
 	// THE PER-TURN STATE LOG (memory-only — the settle-only disk writes
 	// are unchanged). COMPACTION LAW (owner, 2026-10-09, supersedes the
@@ -270,26 +304,79 @@ export function runPiTurn(spec: PiTurnSpec): PiTurnHandle {
 			closeAll();
 		}
 	};
+	const sleepForRetry = (ms: number): Promise<boolean> => {
+		if (sawAbort) return Promise.resolve(false);
+		if (ms <= 0) return Promise.resolve(!sawAbort);
+		return new Promise((resolve) => {
+			const timer = setTimeout(() => {
+				cancelRetrySleep = undefined;
+				resolve(!sawAbort);
+			}, ms);
+			(timer as { unref?: () => void }).unref?.();
+			cancelRetrySleep = () => {
+				clearTimeout(timer);
+				cancelRetrySleep = undefined;
+				resolve(false);
+			};
+		});
+	};
+
 	requestCycle?.bindRelease(handle);
 	agent.subscribe((event) => {
+		if (event.type === "agent_end") return;
+		if (event.type === "agent_start") {
+			if (started) return;
+			started = true;
+		}
 		if (!requestCycle?.hold(event)) handle(event);
 	});
 
 	void (async () => {
 		try {
+			let emptyRetries = 0;
 			do {
+				const prevLast = agent.state.messages[agent.state.messages.length - 1];
 				spec.beforeCycle?.();
 				await agent.continue();
-				if (!requestCycle) break;
-				const denied = requestCycle.deniedBeforeDispatch;
-				const locallyRejected = requestCycle.locallyRejected;
-				const outcome = requestCycle.finishNativeCycle(agent.state.messages);
-				if (denied || locallyRejected) agent.state.messages = outcome.messages;
-				if (outcome.action !== "resumeForeground") {
-					handle({ type: "agent_end", messages: [...agent.state.messages] });
-					break;
+				let blockedByCycle = false;
+				if (requestCycle) {
+					const denied = requestCycle.deniedBeforeDispatch;
+					const locallyRejected = requestCycle.locallyRejected;
+					const outcome = requestCycle.finishNativeCycle(agent.state.messages);
+					if (denied || locallyRejected) {
+						agent.state.messages = outcome.messages;
+						blockedByCycle = true;
+					}
+					if (outcome.action === "resumeForeground") continue;
 				}
+				const last = agent.state.messages[agent.state.messages.length - 1];
+				if (!sawAbort && !blockedByCycle && last !== prevLast && isEmptyAssistantStop(last)) {
+					if (emptyRetries < emptyRetryDelaysMs.length) {
+						const delayMs = emptyRetryDelaysMs[emptyRetries]!;
+						emptyRetries++;
+						console.warn(`[turn] empty assistant stop response; retrying (${emptyRetries}/${emptyRetryDelaysMs.length}) after ${delayMs}ms`);
+						agent.state.messages = agent.state.messages.slice(0, -1);
+						const shouldContinue = await sleepForRetry(delayMs);
+						if (shouldContinue) continue;
+					} else {
+						const retries = emptyRetryDelaysMs.length;
+						const failed = {
+							...(last as Record<string, unknown>),
+							stopReason: "error",
+							errorMessage: retries > 0
+								? `The model returned an empty response after ${retries} ${retries === 1 ? "retry" : "retries"}. Try again.`
+								: "The model returned an empty response. Try again.",
+						} as AgentMessage;
+						agent.state.messages = [...agent.state.messages.slice(0, -1), failed];
+						handle({ type: "message_end", message: failed });
+					}
+				}
+				handle({ type: "agent_end", messages: [...agent.state.messages] });
+				break;
 			} while (!sawAbort);
+			if (!settled) {
+				handle({ type: "agent_end", messages: [...agent.state.messages] });
+			}
 		} catch (err) {
 			// A loop-level failure (not a provider error — those ride the
 			// stream as stopReason "error"): surface, close, persist. If the
@@ -359,6 +446,7 @@ export function runPiTurn(spec: PiTurnSpec): PiTurnHandle {
 		abort() {
 			if (settled) return;
 			sawAbort = true;
+			cancelRetrySleep?.();
 			requestCycle?.abort();
 			agent.abort();
 		},

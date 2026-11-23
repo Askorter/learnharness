@@ -33,6 +33,7 @@ import { WRITABLE_TOOL_KEYS } from "../core/pending.ts";
 import { isSearchEngineId, SEARCH_ENGINES } from "../core/search.ts";
 import { isDictationLanguage } from "../core/dictation.ts";
 import { parseFileAccessSettings } from "../core/file-access.ts";
+import { isValidProxyUrl, normalizeProxyUrl, type ProxySettings } from "../core/proxy.ts";
 
 /** Parsed-or-rejected — `ok: false` carries the 400's error message. */
 export type SettingsBodyResult<T> =
@@ -83,7 +84,7 @@ function asRecord(body: unknown): Record<string, unknown> | null {
 	return body as Record<string, unknown>;
 }
 
-/** general: { autoUpdate?: boolean } */
+/** general: { autoUpdate?: boolean, proxy?: { enabled?: boolean, url?: string, noProxy?: string } } */
 export function parseGeneralSettingsBody(body: unknown): SettingsBodyResult<GeneralSettings> {
 	const raw = asRecord(body);
 	if (!raw) return { ok: false, error: "Invalid JSON body" };
@@ -93,6 +94,41 @@ export function parseGeneralSettingsBody(body: unknown): SettingsBodyResult<Gene
 			return { ok: false, error: "autoUpdate must be a boolean" };
 		}
 		settings.autoUpdate = raw.autoUpdate;
+	}
+	if (raw.proxy !== undefined) {
+		const rawProxy = asRecord(raw.proxy);
+		if (!rawProxy) return { ok: false, error: "proxy must be an object" };
+		const proxy: ProxySettings = {};
+		if (rawProxy.enabled !== undefined) {
+			if (typeof rawProxy.enabled !== "boolean") {
+				return { ok: false, error: "proxy.enabled must be a boolean" };
+			}
+			proxy.enabled = rawProxy.enabled;
+		}
+		if (rawProxy.url !== undefined) {
+			if (typeof rawProxy.url !== "string") {
+				return { ok: false, error: "proxy.url must be a string" };
+			}
+			const normalized = normalizeProxyUrl(rawProxy.url);
+			if (normalized.length > 2048) {
+				return { ok: false, error: "proxy.url is too long" };
+			}
+			proxy.url = normalized;
+		}
+		if (rawProxy.noProxy !== undefined) {
+			if (typeof rawProxy.noProxy !== "string") {
+				return { ok: false, error: "proxy.noProxy must be a string" };
+			}
+			const trimmed = rawProxy.noProxy.trim();
+			if (trimmed.length > 4096) {
+				return { ok: false, error: "proxy.noProxy is too long" };
+			}
+			proxy.noProxy = trimmed;
+		}
+		if (proxy.enabled === true && (!proxy.url || !isValidProxyUrl(proxy.url))) {
+			return { ok: false, error: "Proxy URL must be a valid http:// or https:// URL when proxy is enabled" };
+		}
+		if (Object.keys(proxy).length > 0) settings.proxy = proxy;
 	}
 	return { ok: true, settings };
 }

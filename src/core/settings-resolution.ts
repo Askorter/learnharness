@@ -72,7 +72,7 @@ export type EffectiveAppearance = FactorySettings["appearance"];
 
 /** The concrete view: every knob resolved, no absent fields. */
 export interface EffectiveSettings {
-	general: Required<GeneralSettings>;
+	general: FactorySettings["general"];
 	dictation: Required<DictationSettings>;
 	agent: {
 		workerRequestConcurrency: number;
@@ -197,6 +197,11 @@ export function resolveSettings(record: UserSettings | null): EffectiveSettings 
 	return {
 		general: {
 			autoUpdate: record?.general?.autoUpdate ?? FACTORY_SETTINGS.general.autoUpdate,
+			proxy: {
+				enabled: record?.general?.proxy?.enabled ?? FACTORY_SETTINGS.general.proxy.enabled,
+				url: record?.general?.proxy?.url ?? FACTORY_SETTINGS.general.proxy.url,
+				noProxy: record?.general?.proxy?.noProxy ?? FACTORY_SETTINGS.general.proxy.noProxy,
+			},
 		},
 		dictation: {
 			language: record?.dictation?.language ?? FACTORY_SETTINGS.dictation.language,

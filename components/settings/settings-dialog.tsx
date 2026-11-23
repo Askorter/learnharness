@@ -46,6 +46,7 @@ import {
 import { useAppearance } from "./appearance.tsx";
 import { SettingsSection } from "./controls.tsx";
 import { UpdateSettings } from "./update-settings.tsx";
+import { ProxySettingsPanel } from "./proxy-settings.tsx";
 import { AgentSection, composePromptSwitch } from "./agent-section.tsx";
 import type { ModelsSettings } from "@/src/core";
 import { MENU_CLOSE_EVENT, MENU_OPEN_EVENT } from "@/components/menu-shell";
@@ -493,6 +494,12 @@ export function SettingsDialogBody({
 										autoUpdate={record.general?.autoUpdate ?? true}
 										onAutoUpdateChange={(on) =>
 											void write("general", { ...record.general, autoUpdate: on })
+										}
+									/>
+									<ProxySettingsPanel
+										proxy={record.general?.proxy}
+										onSave={(proxy) =>
+											write("general", { ...record.general, proxy })
 										}
 									/>
 								</SettingsSection>

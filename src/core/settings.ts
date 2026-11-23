@@ -37,6 +37,7 @@ import type { ChatSettings } from "./contracts/chat.ts";
 import { isSearchEngineId, type SearchEngineId } from "./search.ts";
 import { isDictationLanguage, type DictationLanguage } from "./dictation.ts";
 import { parseFileAccessSettings, type FileAccessSettings } from "./file-access.ts";
+import { DEFAULT_PROXY_SETTINGS, isValidProxyUrl, normalizeProxyUrl, type ProxySettings } from "./proxy.ts";
 import { COLOR_OVERRIDE_KEYS, isThemeId, type AppearanceColorOverrides } from "./themes.ts";
 
 /** The schema version this code understands. Bump ONLY for breaking shape
@@ -340,6 +341,8 @@ export const ROLE_SLOT: Readonly<Record<ModelRole, ModelSlotName>> = {
 export interface GeneralSettings {
 	/** Automatic startup/24h update checks (default ON). Manual checks bypass this. */
 	autoUpdate?: boolean;
+	/** Explicit in-app HTTP/HTTPS proxy configuration. */
+	proxy?: ProxySettings;
 }
 
 /** One app-wide dictation preference, shared by every composer. */
@@ -542,7 +545,10 @@ export interface UserSettings {
 export interface FactorySettings {
 	version: number;
 	agent: Required<Pick<AgentSettings, "workerRequestConcurrency">>;
-	general: Required<GeneralSettings>;
+	general: {
+		autoUpdate: boolean;
+		proxy: Required<ProxySettings>;
+	};
 	dictation: Required<DictationSettings>;
 	appearance: {
 		theme: string;
@@ -569,7 +575,10 @@ export interface FactorySettings {
 export const FACTORY_SETTINGS: FactorySettings = {
 	version: CURRENT_SETTINGS_VERSION,
 	agent: { workerRequestConcurrency: 8 },
-	general: { autoUpdate: true },
+	general: {
+		autoUpdate: true,
+		proxy: { ...DEFAULT_PROXY_SETTINGS },
+	},
 	dictation: { language: "en" },
 	appearance: {
 		theme: "default",
@@ -616,10 +625,32 @@ function sanitizeHexOrNull(value: unknown): string | null {
 const boolOrDrop = (value: unknown): boolean | undefined =>
 	typeof value === "boolean" ? value : undefined;
 
+function sanitizeProxy(raw: Record<string, unknown>): ProxySettings {
+	const out: ProxySettings = {};
+	const enabled = boolOrDrop(raw.enabled);
+	if (enabled !== undefined) out.enabled = enabled;
+	if (typeof raw.url === "string") {
+		const normalized = normalizeProxyUrl(raw.url);
+		if (normalized.length <= 2048) out.url = normalized;
+	}
+	if (typeof raw.noProxy === "string") {
+		const trimmed = raw.noProxy.trim();
+		if (trimmed.length <= 4096) out.noProxy = trimmed;
+	}
+	if (out.enabled === true && (!out.url || !isValidProxyUrl(out.url))) {
+		out.enabled = false;
+	}
+	return out;
+}
+
 function sanitizeGeneral(raw: Record<string, unknown>): GeneralSettings {
 	const out: GeneralSettings = {};
 	const autoUpdate = boolOrDrop(raw.autoUpdate);
 	if (autoUpdate !== undefined) out.autoUpdate = autoUpdate;
+	if (raw.proxy !== null && typeof raw.proxy === "object" && !Array.isArray(raw.proxy)) {
+		const proxy = sanitizeProxy(raw.proxy as Record<string, unknown>);
+		if (Object.keys(proxy).length > 0) out.proxy = proxy;
+	}
 	return out;
 }
 

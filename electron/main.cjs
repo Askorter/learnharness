@@ -58,6 +58,7 @@ const DATA_DIR = () => path.join(app.getPath("userData"), "data");
 // Resolve the saved palette before window creation; renderer reports keep
 // it current after live saves. This helper needs no compiled server bundle.
 const { normalizeAppearance, themeSourceFor, serverDataDir, readAppearance, chromeColors } = require("./appearance-chrome.cjs");
+const { readProxySettings, applyElectronProxy } = require("./proxy.cjs");
 let appearance = normalizeAppearance(null);
 
 function applyChrome(win) {
@@ -681,11 +682,15 @@ async function main() {
 
 	// Read the same record/custom theme the server uses before constructing
 	// any native window, including the external development shell.
-	appearance = readAppearance(serverDataDir({
+	const bootDataDir = serverDataDir({
 		devUrl: process.env.LH_DEV_URL, env: process.env,
 		packagedDataDir: DATA_DIR(), repoRoot: path.join(__dirname, ".."),
-	}));
+	});
+	appearance = readAppearance(bootDataDir);
 	nativeTheme.themeSource = themeSourceFor(appearance.mode);
+	await applyElectronProxy(readProxySettings(bootDataDir), { session: session.defaultSession }).catch((err) => {
+		log(`proxy setup failed: ${err?.message ?? err}`);
+	});
 
 	// Dev mode: point at a running `next dev` server (LH_DEV_URL) — no
 	// spawn, no packaging, full HMR. The rest of this shell still applies
@@ -818,6 +823,12 @@ async function main() {
 		appearance = normalizeAppearance(next);
 		nativeTheme.themeSource = themeSourceFor(appearance.mode);
 		for (const win of BrowserWindow.getAllWindows()) applyChrome(win);
+	});
+	ipcMain.on("lh:proxy", (event, next) => {
+		if (!trustedAppWindows.has(BrowserWindow.fromWebContents(event.sender)) || !trustedSender(event, new URL(url).origin, BrowserWindow)) return;
+		void applyElectronProxy(next, { session: session.defaultSession }).catch((err) => {
+			log(`proxy update failed: ${err?.message ?? err}`);
+		});
 	});
 	reopenWindow = () => { chatgpt?.resume(); subscriptions?.resume(); return createWindow(url); };
 	app.on("activate", () => {

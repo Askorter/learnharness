@@ -1,5 +1,6 @@
 import { BlockList, isIP } from "node:net";
-import { Agent, buildConnector, fetch as undiciFetch } from "undici";
+import { Agent, buildConnector, fetch as undiciFetch, type Dispatcher } from "undici";
+import { shouldBypassProxy } from "../../core/proxy.ts";
 
 /**
  * Fetch for model-chosen URLs (research web_fetch / web_fetch_pdf): only
@@ -87,6 +88,33 @@ export function createAddressCheckedAgent(
 
 const publicOnly = createAddressCheckedAgent();
 
+let activeProxy: { dispatcher: Dispatcher; noProxy?: string } | null = null;
+
+/** Configure (or clear) the optional HTTP/HTTPS proxy used by safeFetch.
+ *  Called from the server layer so src/agent never imports src/server. */
+export function setSafeFetchProxy(config: { dispatcher: Dispatcher; noProxy?: string } | null): void {
+	activeProxy = config;
+}
+
+/** Reject obvious local/private target URLs before handing a request to a proxy. */
+function assertPublicTargetUrl(url: string): void {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return;
+	}
+	const rawHost = parsed.hostname.toLowerCase();
+	const unbracketed = rawHost.replace(/^\[|\]$/g, "");
+	if (
+		unbracketed === "localhost" ||
+		unbracketed.endsWith(".localhost") ||
+		(isIP(unbracketed) !== 0 && !isPublicAddress(unbracketed))
+	) {
+		throw new Error(`refusing to connect to a private or local address (${parsed.hostname})`);
+	}
+}
+
 /** Test seam — undefined in production. Tests that drive the research tools
  *  offline set a canned responder here (stubbing globalThis.fetch no longer
  *  reaches these tools, which use undici's own fetch). */
@@ -94,10 +122,23 @@ export const safeFetchOverride: { current?: (url: string, init: RequestInit) => 
 
 /** fetch() limited to public addresses. A refusal surfaces as its own
  *  message instead of undici's generic "fetch failed". */
-export async function safeFetch(url: string, init: RequestInit = {}, dispatcher: Agent = publicOnly): Promise<Response> {
+export async function safeFetch(url: string, init: RequestInit = {}, dispatcher?: Dispatcher): Promise<Response> {
 	if (safeFetchOverride.current) return safeFetchOverride.current(url, init);
+	let effectiveDispatcher: Dispatcher = dispatcher ?? publicOnly;
+	if (!dispatcher && activeProxy) {
+		let hostname = "";
+		try {
+			hostname = new URL(url).hostname;
+		} catch {
+			hostname = "";
+		}
+		if (hostname && !shouldBypassProxy(hostname, activeProxy.noProxy)) {
+			assertPublicTargetUrl(url);
+			effectiveDispatcher = activeProxy.dispatcher;
+		}
+	}
 	try {
-		return (await undiciFetch(url, { ...(init as object), dispatcher })) as unknown as Response;
+		return (await undiciFetch(url, { ...(init as object), dispatcher: effectiveDispatcher })) as unknown as Response;
 	} catch (err) {
 		const cause = (err as { cause?: unknown }).cause;
 		if (cause instanceof BlockedAddressError) throw new Error(cause.message);

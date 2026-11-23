@@ -2,6 +2,8 @@
  * must not prevent access to existing learning data or teaching/practice. */
 export async function register() {
 	if (process.env.NEXT_RUNTIME === "nodejs") {
+		const { initializeProxy } = await import("./src/server/proxy.ts");
+		initializeProxy();
 		const { initializeModelCatalog } = await import("./src/server/remote-model-catalog.ts");
 		initializeModelCatalog();
 		const { initializePlugins } = await import("./src/server/plugins.ts");

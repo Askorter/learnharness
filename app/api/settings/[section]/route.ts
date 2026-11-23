@@ -34,6 +34,7 @@ import { isBuiltinThemeId, type AgentSettings, type AppearanceSettings, type Cha
 import {
 	SETTINGS_SECTIONS,
 	allSegmentPaths,
+	applyProxySettings,
 	clampChatLevel,
 	clampModelsLevels,
 	effectiveSettings,
@@ -145,6 +146,7 @@ export async function PUT(request: Request, ctx: { params: Promise<{ section: st
 	// along untouched (other sections, unknown keys — sanitize preserves).
 	const next = { ...record, [section]: sectionOut };
 	const stored = writeSettingsRecord(next);
+	if (section === "general") applyProxySettings(stored.general?.proxy);
 	// Only a successful durable write changes admission. Increasing the
 	// limit immediately drains queued requests; decreasing never cancels active work.
 	refreshWorkerRequestAdmission();

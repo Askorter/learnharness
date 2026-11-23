@@ -86,6 +86,8 @@ declare global {
 			/** Native chrome follows the active theme (theme wave): main sets
 			 *  themeSource and repaints the window background / overlay. */
 			setAppearance?: (a: { mode: ThemeMode; background: string }) => void;
+			/** Sync HTTP/HTTPS proxy settings into Electron main + defaultSession. */
+			setProxy?: (proxy: { enabled?: boolean; url?: string; noProxy?: string }) => void;
 			/** The zoom truth (owner round 7): subscribes to "lh:zoom" pushes; returns unsubscribe. */
 			onZoom?: (cb: (factor: number) => void) => () => void;
 			getZoom?: () => Promise<number>;
