@@ -105,7 +105,7 @@ export function PromptSegmentDialog({ name, source, override, mode, returnFocusF
 		<header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
 			<div className="min-w-0">
 				<h2 id={titleId} className="text-sm font-semibold">{title}</h2>
-				<p id={nameId} className="mt-0.5 font-prose text-(length:--lh-prose-size) text-muted-foreground">{name}</p>
+				<p id={nameId} className="mt-0.5 text-sm text-muted-foreground">{name}</p>
 			</div>
 			<SettingsSegmentedControl label="Prompt display" disabled={confirmDiscard}
 				options={[{ value: "markdown", label: "Markdown" }, { value: "preview", label: "Preview" }]}

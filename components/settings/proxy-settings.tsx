@@ -97,7 +97,7 @@ export function ProxySettingsPanel({
 				</SettingsRow>
 
 				<div className="flex flex-col gap-1.5" data-testid="row-proxy-url">
-					<label htmlFor="lh-proxy-url" className="font-prose text-(length:--lh-prose-size) text-foreground">
+					<label htmlFor="lh-proxy-url" className="text-sm font-medium text-foreground">
 						Proxy URL
 					</label>
 					<input
@@ -120,7 +120,7 @@ export function ProxySettingsPanel({
 				</div>
 
 				<div className="flex flex-col gap-1.5" data-testid="row-proxy-noproxy">
-					<label htmlFor="lh-proxy-noproxy" className="font-prose text-(length:--lh-prose-size) text-foreground">
+					<label htmlFor="lh-proxy-noproxy" className="text-sm font-medium text-foreground">
 						No proxy
 					</label>
 					<input

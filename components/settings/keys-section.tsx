@@ -208,7 +208,7 @@ function KeyTableRow({
 		return (
 			<div data-testid={testid}>
 				<div className="flex items-center gap-2 rounded-sm px-1 py-1.5" data-testid={`${testid}-editor`}>
-					<span className="shrink-0 font-ui text-xs text-foreground">{label}</span>
+					<span className="shrink-0 font-ui text-sm font-medium text-foreground">{label}</span>
 					<input
 						type="text"
 						value={value}
@@ -273,7 +273,7 @@ function KeyTableRow({
 					envOwned ? "cursor-default" : "cursor-pointer transition-colors hover:bg-accent/50"
 				}`}
 			>
-				<span className="font-ui text-xs text-foreground">{label}</span>
+				<span className="font-ui text-sm font-medium text-foreground">{label}</span>
 				<span className="flex items-center gap-2">
 					{docsUrl && (
 						<a
@@ -560,7 +560,7 @@ export function KeysSection({
 					<div key={provider.id} hidden={adding?.id !== provider.id} inert={adding?.id !== provider.id}
 						style={{ display: adding?.id === provider.id ? undefined : "none" }}
 						className="flex items-center gap-2 rounded-sm px-1 py-1.5" data-testid={`key-${provider.id}-editor`}>
-						<span className="shrink-0 font-ui text-xs text-foreground">{provider.label}</span>
+						<span className="shrink-0 font-ui text-sm font-medium text-foreground">{provider.label}</span>
 						<AddProviderEditor provider={provider} active={adding?.id === provider.id} onSave={(v) => void saveNewProvider(provider, v)} onCancel={() => discardProviderEditor(provider.id)} error={addError} />
 					</div>
 				))}
@@ -714,7 +714,7 @@ function CustomEndpointRow({
 				onClick={onToggle}
 				className="flex w-full items-center justify-between gap-3 rounded-sm px-1 py-1.5 text-left cursor-pointer transition-colors hover:bg-accent/50"
 			>
-				<span className="font-ui text-xs text-foreground">Custom endpoint</span>
+				<span className="font-ui text-sm font-medium text-foreground">Custom endpoint</span>
 				<span data-testid="custom-endpoint-status" className="max-w-[60%] truncate font-mono text-[11px] text-muted-foreground">
 					{line}
 				</span>
@@ -894,7 +894,7 @@ function CustomEndpointEditor({
 	return (
 		<div data-testid="custom-endpoint-editor" className="flex flex-col gap-2 rounded-sm px-1 py-1.5">
 			<div className="flex items-center gap-2">
-				<span className="shrink-0 font-ui text-xs text-foreground">Custom endpoint</span>
+				<span className="shrink-0 font-ui text-sm font-medium text-foreground">Custom endpoint</span>
 				<input
 					ref={baseUrlRef}
 					type="text"

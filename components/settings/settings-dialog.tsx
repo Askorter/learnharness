@@ -394,8 +394,8 @@ export function SettingsDialogBody({
 			onClick={(e) => e.stopPropagation()}
 		>
 			{/* Header — the app's quiet CMU title language. */}
-			<header className="flex h-15 shrink-0 items-center gap-3 border-b border-border px-5">
-				<h2 className="font-title text-2xl tracking-tight">Settings</h2>
+			<header className="flex h-13 shrink-0 items-center gap-3 border-b border-border px-5">
+				<h2 className="font-title text-lg font-semibold tracking-tight">Settings</h2>
 				<Hint
 						// Esc closes through the shared interaction owner.
 						label="Close"
@@ -439,7 +439,7 @@ export function SettingsDialogBody({
 								aria-current={selected === s.id}
 								className={`flex w-full items-center gap-2 break-words rounded-sm px-3 py-1.5 text-left font-ui text-sm transition-colors ${
 									selected === s.id
-										? "bg-accent text-foreground"
+										? "bg-accent font-medium text-foreground"
 										: "text-muted-foreground hover:bg-accent hover:text-foreground"
 								}`}
 								onClick={() => setActive(s.id)}

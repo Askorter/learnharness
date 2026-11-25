@@ -127,7 +127,7 @@ export function ThemeCards({
 		<div data-testid="row-theme" className="flex flex-col gap-3 py-1">
 			<div className="flex items-end justify-between gap-4">
 				<span className="min-w-0">
-					<span className="block font-prose text-(length:--lh-prose-size)">Theme</span>
+					<span className="block text-sm font-medium text-foreground">Theme</span>
 					<span data-testid="theme-hint" className="block text-xs text-muted-foreground/70">
 						{active.name} · {active.mode} · sets every color below
 					</span>

@@ -107,7 +107,7 @@
 	   (Source Sans 3 by default). The loading-face variables attach in
 	   app/layout.tsx. Keep the sans alias pointed at the RUNTIME prose token,
 	   not the loading face, so font-sans also honors Appearance changes. */
-	--font-ui: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+	--font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 	--font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
 	--font-sans: var(--font-prose);
 	/* The modular type ladder — each size carries its own line-height.
@@ -120,10 +120,10 @@
 	/* --font-prose and --font-title live in the NON-inline @theme below:
 	   their utilities must read the runtime variables, not bake in the
 	   defaults and bypass the Appearance reading-font/serif overrides. */
-	--text-xs: 11px;
-	--text-xs--line-height: 1.4;
-	--text-sm: 12.5px;
-	--text-sm--line-height: 1.4;
+	--text-xs: 12px;
+	--text-xs--line-height: 1.45;
+	--text-sm: 13px;
+	--text-sm--line-height: 1.45;
 	--text-base: 14px;
 	--text-base--line-height: 1.45;
 	--text-lg: 16px;
@@ -200,7 +200,19 @@ body {
    font takes it, and CMU (a single 700 face) snaps to its nearest
    available weight — the same rendering it already had. */
 .font-title {
-	font-weight: 900;
+	font-weight: 600;
+	letter-spacing: -0.015em;
+}
+
+/* Native desktop typography: keep UI labels in natural Sentence/Title case
+   with comfortable tracking instead of forced all-caps wide-tracked chrome. */
+.uppercase {
+	text-transform: none;
+}
+.tracking-widest,
+.tracking-wider,
+.tracking-wide {
+	letter-spacing: 0;
 }
 
 .lh-prose :where(strong, b) {
@@ -685,8 +697,8 @@ body {
    independently, whether titles use serif or the reading family. Non-inline
    utilities read these vars; Source Sans 3 remains the default/loading face. */
 @theme {
-	--font-prose: var(--font-sans3), ui-sans-serif, system-ui, sans-serif;
-	--font-title: "lh-cmu", serif;
+	--font-prose: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--font-title: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Card enter (owner round, 2026-10-05): the transcript cards' one-shot

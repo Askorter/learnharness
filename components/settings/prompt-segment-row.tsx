@@ -27,7 +27,7 @@ export function PromptSegmentRow({ path, usageHint, hasOverride, enabled, busy, 
 	return <div ref={row} role="group" aria-label={name} tabIndex={-1} data-testid={`prompt-segment-${path}`} className="border-t border-border/50 py-2 font-ui focus-visible:outline-1 focus-visible:outline-ring">
 		<div data-testid={`prompt-row-${path}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
 			<div className="min-w-0 flex-1 basis-44">
-				<p className="font-prose text-(length:--lh-prose-size) text-foreground">{name}</p>
+				<p className="text-sm font-medium text-foreground">{name}</p>
 				{usageHint && <p className="mt-0.5 text-xs text-muted-foreground">{usageHint}</p>}
 			</div>
 			<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
